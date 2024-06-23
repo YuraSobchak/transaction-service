@@ -1,0 +1,10 @@
+parameters:
+    level: 6
+    paths:
+        - src
+    tmpDir: .build
+    ignoreErrors:
+        -
+            identifier: missingType.generics
+        -
+            identifier: missingType.iterableValue
