@@ -1,0 +1,37 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build-and-test:
+    name: Coding Standards and Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          coverage: pcov
+          php-version: 8.2
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --optimize-autoloader --ignore-platform-reqs --no-interaction --no-scripts --no-progress
+
+      - name: Run a static analysis with PHPStan
+        run: php vendor/bin/phpstan analyse --error-format=checkstyle
+
+      - name: Run a code style check with PHP CS Fixer
+        run: php vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --format=checkstyle
+
+      - name: Rector check
+        run: php vendor/bin/rector --dry-run
+
+      - name: Run tests with PHPUnit
+        run: php vendor/bin/phpunit --coverage-clover=.build/coverage.xml --testdox
