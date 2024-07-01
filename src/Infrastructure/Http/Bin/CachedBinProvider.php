@@ -4,31 +4,46 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Http\Bin;
 
-use App\Infrastructure\Cache\CacheService;
+use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\Cache\TagAwareCacheInterface;
 
 final readonly class CachedBinProvider implements BinProviderInterface
 {
+    private const EXPIRES_AFTER = 3600;
+
     public function __construct(
         private BinProviderInterface $decorated,
-        private CacheService $cacheService,
+        private TagAwareCacheInterface $binCountryCodesCache,
     ) {
     }
 
     public function getBinCountryCode(string $bin): string
     {
-        $key = $this->getKey($bin);
-        $countryCode = $this->cacheService->get($key);
+        try {
+            return $this->binCountryCodesCache->get(
+                self::getCacheKey($bin),
+                function (ItemInterface $item) use ($bin) {
+                    $item->expiresAfter(self::EXPIRES_AFTER);
 
-        if (!$countryCode) {
-            $countryCode = $this->decorated->getBinCountryCode($bin);
-            $this->cacheService->set($key, $countryCode);
+                    $articlePrices = $this->decorated->getBinCountryCode($bin);
+
+                    $item->tag([self::getGenericCacheTag()]);
+
+                    return $articlePrices;
+                }
+            );
+        } catch (\Throwable) {
+            return $this->decorated->getBinCountryCode($bin);
         }
-
-        return $countryCode;
     }
 
-    private function getKey(string $bin): string
+    public static function getCacheKey(string $bin): string
     {
-        return 'bin' . $bin;
+        return \sprintf('bin-country-codes_%s', $bin);
+    }
+
+    public static function getGenericCacheTag(): string
+    {
+        return 'bin-country-codes';
     }
 }

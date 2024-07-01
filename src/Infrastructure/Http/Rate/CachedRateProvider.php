@@ -4,31 +4,46 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Http\Rate;
 
-use App\Infrastructure\Cache\CacheService;
+use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\Cache\TagAwareCacheInterface;
 
 final readonly class CachedRateProvider implements RateProviderInterface
 {
+    private const EXPIRES_AFTER = 3600;
+
     public function __construct(
         private RateProviderInterface $decorated,
-        private CacheService $cacheService,
+        private TagAwareCacheInterface $currencyRatesCache,
     ) {
     }
 
     public function getRate(string $currency): float
     {
-        $key = $this->getKey($currency);
-        $rate = $this->cacheService->get($key);
+        try {
+            return $this->currencyRatesCache->get(
+                self::getCacheKey($currency),
+                function (ItemInterface $item) use ($currency) {
+                    $item->expiresAfter(self::EXPIRES_AFTER);
 
-        if (!$rate) {
-            $rate = $this->decorated->getRate($currency);
-            $this->cacheService->set($key, $rate);
+                    $articlePrices = $this->decorated->getRate($currency);
+
+                    $item->tag([self::getGenericCacheTag()]);
+
+                    return $articlePrices;
+                }
+            );
+        } catch (\Throwable) {
+            return $this->decorated->getRate($currency);
         }
-
-        return $rate;
     }
 
-    private function getKey(string $bin): string
+    public static function getCacheKey(string $currency): string
     {
-        return 'currency' . $bin;
+        return \sprintf('currency-rates_%s', $currency);
+    }
+
+    public static function getGenericCacheTag(): string
+    {
+        return 'currency-rates';
     }
 }
