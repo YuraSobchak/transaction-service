@@ -6,6 +6,7 @@ namespace App\Tests\Unit\Domain\Shared\Service;
 
 use App\Application\Shared\Parser\ParserLoader;
 use App\Domain\Shared\Service\FileProcessor;
+use App\Domain\Transaction\Service\CommissionProvider;
 use App\Domain\Transaction\Service\FeeCalculator;
 use App\Domain\Transaction\Transaction;
 use App\Infrastructure\FileSystem\Txt\TxtDataLoader;
@@ -22,6 +23,7 @@ class FileProcessorTest extends MockeryTestCase
     private RateProviderInterface $rateProvider;
     private FeeCalculator $feeCalculator;
     private LoggerInterface $logger;
+    private CommissionProvider $commissionProvider;
     private FileProcessor $fileProcessor;
 
     protected function setUp(): void
@@ -31,12 +33,14 @@ class FileProcessorTest extends MockeryTestCase
         $this->rateProvider = \Mockery::mock(RateProviderInterface::class);
         $this->feeCalculator = \Mockery::mock(FeeCalculator::class);
         $this->logger = \Mockery::mock(LoggerInterface::class);
+        $this->commissionProvider = \Mockery::mock(CommissionProvider::class);
         $this->fileProcessor = new FileProcessor(
             $this->parserLoader,
             $this->binProvider,
             $this->rateProvider,
             $this->feeCalculator,
             $this->logger,
+            $this->commissionProvider,
         );
     }
 
@@ -50,9 +54,11 @@ class FileProcessorTest extends MockeryTestCase
         $txtDataLoader->shouldReceive('getData')->andReturn([
             new Transaction('1234', 100, 'EUR'),
         ]);
+        $this->commissionProvider->shouldReceive('getAll')->andReturn(['DE', 0.01]);
 
         $this->binProvider->shouldReceive('getBinCountryCode')->andReturn('DE');
         $this->rateProvider->shouldReceive('getRate')->andReturn(1);
+        $this->commissionProvider->shouldReceive('getByCountryCode')->andReturn(0.01);
         $this->feeCalculator->shouldReceive('calculate')->andReturn(1);
 
         $return = $this->fileProcessor->processTransactions('transactions.txt');
@@ -71,6 +77,7 @@ class FileProcessorTest extends MockeryTestCase
         $txtDataLoader->shouldReceive('getData')->andReturn([
             new Transaction('1234', 100, 'EUR'),
         ]);
+        $this->commissionProvider->shouldReceive('getAll')->andReturn(['DE', 0.01]);
 
         $this->binProvider->shouldReceive('getBinCountryCode')->andThrow(new \Exception());
         $this->logger->shouldReceive('error');

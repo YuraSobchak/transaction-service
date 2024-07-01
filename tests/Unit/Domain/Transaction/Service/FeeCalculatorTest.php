@@ -22,15 +22,19 @@ final class FeeCalculatorTest extends TestCase
 
     public static function getFeeProvider(): iterable
     {
-        yield 'transaction fee for EUR' => [new Transaction('1234', 1000, 'EUR'), 'DE', 1, 10]; // commission rate 0.01
-        yield 'transaction fee for USD' => [new Transaction('1234', 1000, 'USD'), 'US', 1.07, 18.70]; // commission rate 0.02
-        yield 'transaction fee for GBP' => [new Transaction('1234', 1000, 'GBP'), 'FR', 0.85, 11.77]; // commission rate 0.01
+        yield 'transaction fee for EUR' => [new Transaction('1234', 1000, 'EUR'), 1, 0.01, 10]; // commission rate 0.01
+        yield 'transaction fee for USD' => [new Transaction('1234', 1000, 'USD'), 1.07, 0.02, 18.70]; // commission rate 0.02
+        yield 'transaction fee for GBP' => [new Transaction('1234', 1000, 'GBP'), 0.85, 0.01, 11.77]; // commission rate 0.01
     }
 
     #[DataProvider('getFeeProvider')]
-    public function testFeeCalculatorCalculate(Transaction $transaction, string $countryCode, float|int $rate, float $expectedFee): void
-    {
-        $actualFee = $this->feeCalculator->calculate($transaction, $countryCode, $rate);
+    public function testFeeCalculatorCalculate(
+        Transaction $transaction,
+        float|int $rate,
+        float|int $commissionRate,
+        float $expectedFee
+    ): void {
+        $actualFee = $this->feeCalculator->calculate($transaction, $rate, $commissionRate);
 
         Assert::assertEquals($expectedFee, $actualFee);
     }

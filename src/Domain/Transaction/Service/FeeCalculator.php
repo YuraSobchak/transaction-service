@@ -11,34 +11,20 @@ final readonly class FeeCalculator
     private const DECIMAL_PRECISION = 2;
     private const EUR = 'EUR';
 
-    private const COUNTRY_CODES = [
-        'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES',
-        'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU',
-        'LV', 'MT', 'NL', 'PO', 'PT', 'RO', 'SE', 'SI', 'SK',
-    ];
-
-    public function calculate(Transaction $transaction, string $countryCode, float|int $rate): float
-    {
+    public function calculate(
+        Transaction $transaction,
+        float|int $rate,
+        float|int $commissionRate,
+    ): float {
         if (self::EUR === $transaction->currency) {
             $euAmount = $transaction->amount;
         } else {
             $euAmount = $rate > 0 ? ($transaction->amount / $rate) : $transaction->amount;
         }
 
-        $commissionRate = $this->commissionRate($countryCode);
-
         $fee = $euAmount * $commissionRate;
 
         return $this->round($fee, self::DECIMAL_PRECISION);
-    }
-
-    private function commissionRate(string $countryCode): float
-    {
-        if (\in_array($countryCode, self::COUNTRY_CODES)) {
-            return 0.01;
-        }
-
-        return 0.02;
     }
 
     private function round(float $value, ?int $precision = null): float

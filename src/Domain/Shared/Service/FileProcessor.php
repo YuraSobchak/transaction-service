@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Shared\Service;
 
 use App\Application\Shared\Parser\ParserLoader;
+use App\Domain\Transaction\Service\CommissionProvider;
 use App\Domain\Transaction\Service\FeeCalculator;
 use App\Infrastructure\Http\Bin\BinProviderInterface;
 use App\Infrastructure\Http\Rate\RateProviderInterface;
@@ -18,6 +19,7 @@ final readonly class FileProcessor
         private RateProviderInterface $rateProvider,
         private FeeCalculator $feeCalculator,
         private LoggerInterface $logger,
+        private CommissionProvider $commissionProvider,
     ) {
     }
 
@@ -25,13 +27,15 @@ final readonly class FileProcessor
     {
         $parser = $this->parserLoader->loadParser(\pathinfo($filename, PATHINFO_EXTENSION));
         $transactions = $parser->getDataLoader()->getData($filename);
+        $commissions = $this->commissionProvider->getAll();
 
         $fees = [];
         foreach ($transactions as $transaction) {
             try {
                 $countryCode = $this->binProvider->getBinCountryCode($transaction->bin);
                 $rate = $this->rateProvider->getRate($transaction->currency);
-                $fees[] = $this->feeCalculator->calculate($transaction, $countryCode, $rate);
+                $commissionRate = $this->commissionProvider->getByCountryCode($commissions, $countryCode);
+                $fees[] = $this->feeCalculator->calculate($transaction, $rate, $commissionRate);
             } catch (\Throwable) {
                 $this->logger->error(\sprintf('Transaction failed with bin %s', $transaction->bin));
 
